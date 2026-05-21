@@ -1,77 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Reddit Automation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f0f0f;color:#fff;font-family:Arial,sans-serif}
+.header{background:#1a1a1a;padding:15px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #ff4500}
+.header h1{color:#ff4500;font-size:20px}
+.status{display:flex;align-items:center;gap:8px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;background:#ff0000}
+.dot.on{background:#00ff00}
+.nav{display:flex;background:#1a1a1a;border-bottom:1px solid #333}
+.nav button{flex:1;padding:12px;background:none;color:#888;border:none;font-size:13px;cursor:pointer;border-bottom:3px solid transparent}
+.nav button.active{color:#ff4500;border-bottom:3px solid #ff4500}
+.page{display:none;padding:15px}
+.page.active{display:block}
+.card{background:#1a1a1a;border-radius:10px;padding:15px;margin-bottom:12px}
+.card h3{color:#ff4500;margin-bottom:12px;font-size:15px}
+.phone-card{display:flex;justify-content:space-between;align-items:center;background:#2a2a2a;padding:12px;border-radius:8px;margin-bottom:8px}
+.badge{background:#00ff00;color:#000;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold}
+select,input{width:100%;padding:10px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;margin-bottom:10px;font-size:14px}
+.btn{width:100%;padding:13px;background:#ff4500;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;margin-bottom:8px}
+.btn.gray{background:#333}
+.btn.green{background:#00aa44}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #2a2a2a}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:13px;color:#ccc;max-width:75%}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:24px;transition:.3s}
+.slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:#ff4500}
+input:checked+.slider:before{transform:translateX(20px)}
+.log-box{background:#000;border-radius:8px;padding:10px;height:180px;overflow-y:auto;font-size:12px;font-family:monospace}
+.log-line{padding:3px 0;border-bottom:1px solid #111}
+.log-line.ok{color:#00ff00}
+.log-line.err{color:#ff4500}
+.log-line.info{color:#4499ff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-box{background:#2a2a2a;border-radius:8px;padding:12px;text-align:center}
+.stat-num{font-size:24px;font-weight:bold;color:#ff4500}
+.stat-label{font-size:11px;color:#888;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Reddit Bot</h1>
+<div class="status">
+<div class="dot" id="dot"></div>
+<span id="statusText">Connecting...</span>
+</div>
+</div>
+<div class="nav">
+<button class="active" onclick="showPage('devices',this)">Devices</button>
+<button onclick="showPage('tasks',this)">Tasks</button>
+<button onclick="showPage('settings',this)">Settings</button>
+<button onclick="showPage('logs',this)">Logs</button>
+</div>
+<div class="page active" id="page-devices">
+<div class="card">
+<h3>Connected Phones</h3>
+<div id="phoneList"><p style="color:#666;font-size:13px">No phones connected yet</p></div>
+</div>
+<div class="card">
+<h3>Stats</h3>
+<div class="grid2">
+<div class="stat-box"><div class="stat-num" id="statPhones">0</div><div class="stat-label">Phones Online</div></div>
+<div class="stat-box"><div class="stat-num" id="statActions">0</div><div class="stat-label">Actions Today</div></div>
+</div>
+</div>
+</div>
+<div class="page" id="page-tasks">
+<div class="card">
+<h3>Target Phone</h3>
+<select id="phoneSelect"><option value="">Select a phone...</option></select>
+</div>
+<div class="card">
+<h3>Scrolling</h3>
+<div class="toggle-row"><span class="toggle-label">Endless Downward Scroll</span><label class="toggle"><input type="checkbox" id="t_scroll" checked><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Scroll and Pause</span><label class="toggle"><input type="checkbox" id="t_pause"><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Reverse Scroll</span><label class="toggle"><input type="checkbox" id="t_reverse"><span class="slider"></span></label></div>
+</div>
+<div class="card">
+<h3>Upvote / Downvote</h3>
+<div class="toggle-row"><span class="toggle-label">Quick Upvote</span><label class="toggle"><input type="checkbox" id="t_upvote"><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Downvote Spam Posts</span><label class="toggle"><input type="checkbox" id="t_downvote"><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Upvote After Reading</span><label class="toggle"><input type="checkbox" id="t_upvoteread"><span class="slider"></span></label></div>
+</div>
+<div class="card">
+<h3>Comments</h3>
+<div class="toggle-row"><span class="toggle-label">Quick Comment</span><label class="toggle"><input type="checkbox" id="t_quickcomment"><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Detailed Response</span><label class="toggle"><input type="checkbox" id="t_detailedcomment"><span class="slider"></span></label></div>
+<div class="toggle-row"><span class="toggle-label">Reply to Comments</span><label class="toggle"><input type="checkbox" id="t_replycomment"><span class="slider"></span></label></div>
+</div>
+<div class="card">
+<h3>Subreddit Target</h3>
+<input type="text" id="subredditInput" placeholder="e.g. r/funny, r/gaming">
+</div>
+<button class="btn green" onclick="startTask()">Start Task</button>
+<button class="btn gray" onclick="stopTask()">Stop Task</button>
+</div>
+<div class="page" id="page-settings">
+<div class="card">
+<h3>Speed Settings</h3>
+<select id="commentSpeed">
+<option value="normal">Normal (1 comment every 12-30 min)</option>
+<option value="extensive">Extensive (1 comment every 6-12 min)</option>
+</select>
+<select id="upvoteSpeed">
+<option value="normal">Normal (1 upvote every 2-6 min)</option>
+<option value="extensive">Extensive (1 upvote every 1-2 min)</option>
+</select>
+</div>
+<div class="card">
+<h3>Daily Run Time</h3>
+<input type="number" id="runHours" value="4" min="1" max="12" placeholder="Hours per day">
+<input type="time" id="startTime" value="09:00">
+</div>
+</div>
+<div class="page" id="page-logs">
+<div class="card">
+<h3>Activity Log</h3>
+<div class="log-box" id="logBox"></div>
+</div>
+<button class="btn gray" onclick="clearLog()">Clear Log</button>
+</div>
+<script>
+var SERVER='wss://real-phone-reddit-automation-server-production.up.railway.app';
+var ws,phones=[],actionCount=0;
+function showPage(name,btn){
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active')});
+document.getElementById('page-'+name).classList.add('active');
+btn.classList.add('active');
+}
 function log(msg,type){
-  var box=document.getElementById('logBox');
-  var d=document.createElement('div');
-  d.className='log-line '+(type||'info');
-  d.textContent=new Date().toLocaleTimeString()+' — '+msg;
-  box.insertBefore(d,box.firstChild);
+var box=document.getElementById('logBox');
+var d=document.createElement('div');
+d.className='log-line '+(type||'info');
+d.textContent=new Date().toLocaleTimeString()+' - '+msg;
+box.insertBefore(d,box.firstChild);
 }
-
-function clearLog(){document.getElementById('logBox').innerHTML=''}
-
+function clearLog(){document.getElementById('logBox').innerHTML='';}
 function updatePhones(){
-  var list=document.getElementById('phoneList');
-  var sel=document.getElementById('phoneSelect');
-  sel.innerHTML='<option value="">Select a phone...</option>';
-  document.getElementById('statPhones').textContent=phones.length;
-  if(!phones.length){list.innerHTML='<p style="color:#666;font-size:13px">No phones connected yet</p>';return}
-  list.innerHTML='';
-  phones.forEach(function(p){
-    list.innerHTML+='<div class="phone-card"><div><div class="phone-name">📱 '+p+'</div></div><span class="badge">● Online</span></div>';
-    var o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);
-  });
+var list=document.getElementById('phoneList');
+var sel=document.getElementById('phoneSelect');
+sel.innerHTML='<option value="">Select a phone...</option>';
+document.getElementById('statPhones').textContent=phones.length;
+if(!phones.length){list.innerHTML='<p style="color:#666;font-size:13px">No phones connected yet</p>';return;}
+list.innerHTML='';
+phones.forEach(function(p){
+list.innerHTML+='<div class="phone-card"><span class="phone-name">'+p+'</span><span class="badge">Online</span></div>';
+var o=document.createElement('option');
+o.value=p;o.textContent=p;
+sel.appendChild(o);
+});
 }
-
 function startTask(){
-  var phoneId=document.getElementById('phoneSelect').value;
-  if(!phoneId){log('Select a phone first','err');return}
-  if(!ws||ws.readyState!==1){log('Not connected to server','err');return}
-  var task={
-    scroll:document.getElementById('t_scroll').checked,
-    scrollPause:document.getElementById('t_pause').checked,
-    reverseScroll:document.getElementById('t_reverse').checked,
-    upvote:document.getElementById('t_upvote').checked,
-    downvote:document.getElementById('t_downvote').checked,
-    upvoteAfterRead:document.getElementById('t_upvoteread').checked,
-    quickComment:document.getElementById('t_quickcomment').checked,
-    detailedComment:document.getElementById('t_detailedcomment').checked,
-    replyComment:document.getElementById('t_replycomment').checked,
-    subreddit:document.getElementById('subredditInput').value,
-    commentSpeed:document.getElementById('commentSpeed').value,
-    upvoteSpeed:document.getElementById('upvoteSpeed').value
-  };
-  ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'start_task',params:task}));
-  actionCount++;document.getElementById('statActions').textContent=actionCount;
-  log('Task started on '+phoneId,'ok');
+var phoneId=document.getElementById('phoneSelect').value;
+if(!phoneId){log('Select a phone first','err');return;}
+if(!ws||ws.readyState!==1){log('Not connected','err');return;}
+var task={
+scroll:document.getElementById('t_scroll').checked,
+scrollPause:document.getElementById('t_pause').checked,
+reverseScroll:document.getElementById('t_reverse').checked,
+upvote:document.getElementById('t_upvote').checked,
+downvote:document.getElementById('t_downvote').checked,
+upvoteAfterRead:document.getElementById('t_upvoteread').checked,
+quickComment:document.getElementById('t_quickcomment').checked,
+detailedComment:document.getElementById('t_detailedcomment').checked,
+replyComment:document.getElementById('t_replycomment').checked,
+subreddit:document.getElementById('subredditInput').value,
+commentSpeed:document.getElementById('commentSpeed').value,
+upvoteSpeed:document.getElementById('upvoteSpeed').value
+};
+ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'start_task',params:task}));
+actionCount++;
+document.getElementById('statActions').textContent=actionCount;
+log('Task started on '+phoneId,'ok');
 }
-
 function stopTask(){
-  var phoneId=document.getElementById('phoneSelect').value;
-  if(!phoneId){log('Select a phone first','err');return}
-  ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'stop_task',params:{}}));
-  log('Task stopped on '+phoneId,'err');
+var phoneId=document.getElementById('phoneSelect').value;
+if(!phoneId){log('Select a phone first','err');return;}
+ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'stop_task',params:{}}));
+log('Task stopped on '+phoneId,'err');
 }
-
 function connect(){
-  ws=new WebSocket(SERVER);
-  ws.onopen=function(){
-    document.getElementById('dot').className='dot on';
-    document.getElementById('statusText').textContent='Connected';
-    ws.send(JSON.stringify({type:'register_dashboard'}));
-    log('Connected to server','ok');
-  };
-  ws.onmessage=function(e){
-    var m=JSON.parse(e.data);
-    if(m.type==='phone_list'){phones=m.phones;updatePhones()}
-    else if(m.type==='phone_connected'){if(phones.indexOf(m.phoneId)===-1)phones.push(m.phoneId);updatePhones();log('Phone connected: '+m.phoneId,'ok')}
-    else if(m.type==='phone_disconnected'){phones=phones.filter(function(p){return p!==m.phoneId});updatePhones();log('Phone disconnected: '+m.phoneId,'err')}
-    else if(m.type==='action_result'){actionCount++;document.getElementById('statActions').textContent=actionCount;log('Result: '+m.result,'ok')}
-    else{log(JSON.stringify(m),'info')}
-  };
-  ws.onclose=function(){
-    document.getElementById('dot').className='dot';
-    document.getElementById('statusText').textContent='Reconnecting...';
-    log('Disconnected','err');setTimeout(connect,3000);
-  };
+ws=new WebSocket(SERVER);
+ws.onopen=function(){
+document.getElementById('dot').className='dot on';
+document.getElementById('statusText').textContent='Connected';
+ws.send(JSON.stringify({type:'register_dashboard'}));
+log('Connected to server','ok');
+};
+ws.onmessage=function(e){
+var m=JSON.parse(e.data);
+if(m.type==='phone_list'){phones=m.phones;updatePhones();}
+else if(m.type==='phone_connected'){if(phones.indexOf(m.phoneId)===-1)phones.push(m.phoneId);updatePhones();log('Phone connected: '+m.phoneId,'ok');}
+else if(m.type==='phone_disconnected'){phones=phones.filter(function(p){return p!==m.phoneId;});updatePhones();log('Phone disconnected: '+m.phoneId,'err');}
+else if(m.type==='action_result'){actionCount++;document.getElementById('statActions').textContent=actionCount;log('Result: '+m.result,'ok');}
+else{log(JSON.stringify(m),'info');}
+};
+ws.onclose=function(){
+document.getElementById('dot').className='dot';
+document.getElementById('statusText').textContent='Reconnecting...';
+log('Disconnected','err');
+setTimeout(connect,3000);
+};
+ws.onerror=function(){log('Connection error','err');};
 }
 connect();
 </script>
