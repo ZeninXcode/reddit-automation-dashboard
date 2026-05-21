@@ -1,53 +1,78 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Reddit Automation</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{background:#0a0a0a;color:#fff;font-family:Arial;padding:20px}
-h1{color:#ff4500;margin-bottom:20px}
-.card{background:#1a1a1a;padding:20px;border-radius:10px;margin-bottom:15px}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:#ff0000}
-.dot.on{background:#00ff00}
-select,input{width:100%;padding:10px;background:#2a2a2a;color:#fff;border:1px solid #333;border-radius:8px;margin-bottom:10px}
-button{width:100%;padding:12px;background:#ff4500;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:bold;margin-bottom:8px}
-.log{background:#000;padding:10px;border-radius:8px;height:150px;overflow-y:auto;font-size:12px;font-family:monospace}
-</style>
-</head>
-<body>
-<h1>Reddit Automation</h1>
-<div class="card">
-<span class="dot" id="dot"></span>
-<span id="status">Connecting...</span>
-</div>
-<div class="card">
-<h3 style="margin-bottom:10px;color:#ff4500">Connected Phones</h3>
-<div id="phones" style="color:#666">No phones connected</div>
-</div>
-<div class="card">
-<h3 style="margin-bottom:10px;color:#ff4500">Send Command</h3>
-<select id="phoneSelect"><option value="">Select phone...</option></select>
-<select id="cmd">
-<option value="open_reddit">Open Reddit</option>
-<option value="scroll_feed">Scroll Feed</option>
-<option value="upvote_post">Upvote Post</option>
-<option value="post_comment">Post Comment</option>
-<option value="open_subreddit">Open Subreddit</option>
-</select>
-<input id="param" placeholder="Parameter (optional)">
-<button onclick="send()">Send Command</button>
-</div>
-<div class="card">
-<h3 style="margin-bottom:10px;color:#ff4500">Log</h3>
-<div class="log" id="log"></div>
-</div>
-<script>
-var url='wss://real-phone-reddit-automation-server-production.up.railway.app';
-var ws,phones=[];
-function log(m,c){var d=document.getElementById('log'),p=document.createElement('p');p.style.color=c||'#4499ff';p.style.marginBottom='4px';p.textContent=new Date().toLocaleTimeString()+' '+m;d.insertBefore(p,d.firstChild)}
-function updatePhones(){var l=document.getElementById('phones'),s=document.getElementById('phoneSelect');s.innerHTML='<option value="">Select phone...</option>';if(!phones.length){l.innerHTML='<p style="color:#666">No phones connected</p>';return}l.innerHTML='';phones.forEach(function(p){l.innerHTML+='<div style="background:#2a2a2a;padding:8px;border-radius:6px;margin-bottom:6px">📱 '+p+' <span style="color:#00ff00">● Online</span></div>';var o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o)})}
-function connect(){ws=new WebSocket(url);ws.onopen=function(){document.getElementById('dot').className='dot on';document.getElementById('status').textContent='Server connected';ws.send(JSON.stringify({type:'register_dashboard'}));log('Connected','#00ff00')};ws.onmessage=function(e){var m=JSON.parse(e.data);if(m.type==='phone_list'){phones=m.phones;updatePhones()}else if(m.type==='phone_connected'){if(phones.indexOf(m.phoneId)===-1)phones.push(m.phoneId);updatePhones();log('Phone connected: '+m.phoneId,'#00ff00')}else if(m.type==='phone_disconnected'){phones=phones.filter(function(p){return p!==m.phoneId});updatePhones();log('Phone disconnected: '+m.phoneId,'#ff4500')}else{log(JSON.stringify(m))}};ws.onclose=function(){document.getElementById('dot').className='dot';document.getElementById('status').textContent='Disconnected - reconnecting...';log('Disconnected','#ff4500');setTimeout(connect,3000)};ws.onerror=function(){log('Error','#ff4500')}}
-function send(){var p=document.getElementById('phoneSelect').value,c=document.getElementById('cmd').value,x=document.getElementById('param').value;if(!p){log('Select a phone first','#ff4500');return}ws.send(JSON.stringify({type:'command',phoneId:p,command:c,params:x}));log('Sent: '+c+' to '+p)}
+function log(msg,type){
+  var box=document.getElementById('logBox');
+  var d=document.createElement('div');
+  d.className='log-line '+(type||'info');
+  d.textContent=new Date().toLocaleTimeString()+' — '+msg;
+  box.insertBefore(d,box.firstChild);
+}
+
+function clearLog(){document.getElementById('logBox').innerHTML=''}
+
+function updatePhones(){
+  var list=document.getElementById('phoneList');
+  var sel=document.getElementById('phoneSelect');
+  sel.innerHTML='<option value="">Select a phone...</option>';
+  document.getElementById('statPhones').textContent=phones.length;
+  if(!phones.length){list.innerHTML='<p style="color:#666;font-size:13px">No phones connected yet</p>';return}
+  list.innerHTML='';
+  phones.forEach(function(p){
+    list.innerHTML+='<div class="phone-card"><div><div class="phone-name">📱 '+p+'</div></div><span class="badge">● Online</span></div>';
+    var o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);
+  });
+}
+
+function startTask(){
+  var phoneId=document.getElementById('phoneSelect').value;
+  if(!phoneId){log('Select a phone first','err');return}
+  if(!ws||ws.readyState!==1){log('Not connected to server','err');return}
+  var task={
+    scroll:document.getElementById('t_scroll').checked,
+    scrollPause:document.getElementById('t_pause').checked,
+    reverseScroll:document.getElementById('t_reverse').checked,
+    upvote:document.getElementById('t_upvote').checked,
+    downvote:document.getElementById('t_downvote').checked,
+    upvoteAfterRead:document.getElementById('t_upvoteread').checked,
+    quickComment:document.getElementById('t_quickcomment').checked,
+    detailedComment:document.getElementById('t_detailedcomment').checked,
+    replyComment:document.getElementById('t_replycomment').checked,
+    subreddit:document.getElementById('subredditInput').value,
+    commentSpeed:document.getElementById('commentSpeed').value,
+    upvoteSpeed:document.getElementById('upvoteSpeed').value
+  };
+  ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'start_task',params:task}));
+  actionCount++;document.getElementById('statActions').textContent=actionCount;
+  log('Task started on '+phoneId,'ok');
+}
+
+function stopTask(){
+  var phoneId=document.getElementById('phoneSelect').value;
+  if(!phoneId){log('Select a phone first','err');return}
+  ws.send(JSON.stringify({type:'command',phoneId:phoneId,command:'stop_task',params:{}}));
+  log('Task stopped on '+phoneId,'err');
+}
+
+function connect(){
+  ws=new WebSocket(SERVER);
+  ws.onopen=function(){
+    document.getElementById('dot').className='dot on';
+    document.getElementById('statusText').textContent='Connected';
+    ws.send(JSON.stringify({type:'register_dashboard'}));
+    log('Connected to server','ok');
+  };
+  ws.onmessage=function(e){
+    var m=JSON.parse(e.data);
+    if(m.type==='phone_list'){phones=m.phones;updatePhones()}
+    else if(m.type==='phone_connected'){if(phones.indexOf(m.phoneId)===-1)phones.push(m.phoneId);updatePhones();log('Phone connected: '+m.phoneId,'ok')}
+    else if(m.type==='phone_disconnected'){phones=phones.filter(function(p){return p!==m.phoneId});updatePhones();log('Phone disconnected: '+m.phoneId,'err')}
+    else if(m.type==='action_result'){actionCount++;document.getElementById('statActions').textContent=actionCount;log('Result: '+m.result,'ok')}
+    else{log(JSON.stringify(m),'info')}
+  };
+  ws.onclose=function(){
+    document.getElementById('dot').className='dot';
+    document.getElementById('statusText').textContent='Reconnecting...';
+    log('Disconnected','err');setTimeout(connect,3000);
+  };
+}
 connect();
 </script>
 </body>
