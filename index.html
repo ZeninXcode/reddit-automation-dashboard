@@ -1,0 +1,78 @@
+if (msg.type === 'phone_list') {
+        phones = msg.phones;
+        updatePhoneList();
+      } else if (msg.type === 'phone_connected') {
+        if (phones.indexOf(msg.phoneId) === -1) phones.push(msg.phoneId);
+        updatePhoneList();
+        log('Phone connected: ' + msg.phoneId, 'success');
+      } else if (msg.type === 'phone_disconnected') {
+        phones = phones.filter(function(p) { return p !== msg.phoneId; });
+        updatePhoneList();
+        log('Phone disconnected: ' + msg.phoneId, 'error');
+      } else if (msg.type === 'action_result') {
+        log('Result from ' + msg.phoneId + ': ' + msg.result, 'success');
+      } else {
+        log('Message: ' + JSON.stringify(msg), 'info');
+      }
+    };
+
+    ws.onclose = function() {
+      document.getElementById('serverDot').className = 'status-dot offline';
+      document.getElementById('serverStatus').textContent = 'Disconnected — reconnecting...';
+      log('Disconnected from server', 'error');
+      setTimeout(connect, 3000);
+    };
+
+    ws.onerror = function() {
+      log('Connection error', 'error');
+    };
+  }
+
+  function updatePhoneList() {
+    var list = document.getElementById('phoneList');
+    var select = document.getElementById('phoneSelect');
+    select.innerHTML = '<option value="">Select a phone...</option>';
+
+    if (phones.length === 0) {
+      list.innerHTML = '<p style="color:#666">No phones connected</p>';
+      return;
+    }
+
+    list.innerHTML = '';
+    phones.forEach(function(phoneId) {
+      var div = document.createElement('div');
+      div.className = 'phone-item';
+      div.innerHTML = '📱 ' + phoneId + '<span style="color:#00ff00">● Online</span>';
+      list.appendChild(div);
+
+      var opt = document.createElement('option');
+      opt.value = phoneId;
+      opt.textContent = phoneId;
+      select.appendChild(opt);
+    });
+  }
+
+  function sendCommand() {
+    var phoneId = document.getElementById('phoneSelect').value;
+    var command = document.getElementById('commandSelect').value;
+    var param = document.getElementById('paramInput').value;
+
+    if (!phoneId) { log('Please select a phone first', 'error'); return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { log('Not connected to server', 'error'); return; }
+
+    ws.send(JSON.stringify({ type: 'command', phoneId: phoneId, command: command, params: param }));
+    log('Sent command "' + command + '" to ' + phoneId, 'info');
+  }
+
+  function quickAction(command, param) {
+    var phoneId = document.getElementById('phoneSelect').value;
+    if (!phoneId) { log('Please select a phone first', 'error'); return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { log('Not connected to server', 'error'); return; }
+    ws.send(JSON.stringify({ type: 'command', phoneId: phoneId, command: command, params: param }));
+    log('Quick action: ' + command, 'info');
+  }
+
+  connect();
+</script>
+</body>
+</html>
